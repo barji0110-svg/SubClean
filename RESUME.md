@@ -72,6 +72,17 @@ Authentication → Users 에 Google 로 로그인한 계정이 실제로 존재�
 > Client Secret 은 **Supabase 대시보드에만** 넣는다.
 > `.env` 에 `VITE_` 로 넣으면 빌드 번들에 박혀 공개된다.
 
+**OAuth 클라이언트 운영 메모 (Google Cloud → API 및 서비스 → 사용자 인증 정보)**
+
+- **승인된 JavaScript 원본은 비워 둔다.** Supabase 가 서버 측에서 중개하므로
+  브라우저가 Google 에 직접 요청하지 않는다. **Vercel 도메인을 여기 추가하지 말 것.**
+- **승인된 리디렉션 URI 는 Supabase 콜백 하나뿐이다.** 배포 도메인이 바뀌어도
+  이 값은 그대로다. 바뀌는 건 Supabase 쪽 URL Configuration 이지 Google 쪽이 아니다.
+- **Client Secret 은 생성 후 다시 볼 수 없다.** Supabase 에 재입력해야 하면
+  `+ Add secret` 으로 새로 발급받아야 한다.
+- ⚠️ **6개월간 미사용이면 OAuth 클라이언트가 자동 삭제된다.**
+  삭제되면 Google 로그인이 통째로 죽는다 (삭제 후 30일 내 복원 가능).
+
 **2. `VITE_GOOGLE_CLIENT_ID` 는 불필요**
 
 코드 어디서도 이 변수를 읽지 않는다. OAuth 는 Supabase 가 서버 측에서 중개하므로

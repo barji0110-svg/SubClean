@@ -24,18 +24,30 @@
 
 ### 남은 작업 (재개 시)
 
-**0. Supabase 프로젝트 상태 확인 — 먼저 할 것**
+**0. Supabase 스키마 상태 확인 — 먼저 할 것**
 
-기존 프로젝트 도메인이 응답하지 않는 상태다. 무료 플랜은 **7일 미사용 시 자동 일시정지**된다.
+프로젝트(`subclean`, Free, Northeast Asia Tokyo)는 **Healthy 상태로 살아 있다.**
+`.env` 의 URL·키를 그대로 쓰면 된다. 다만 대시보드가 `LAST MIGRATION: No migrations` 로
+표시되고 API Success Rate 가 76% 라, 스키마가 실제로 어떤 상태인지 확인이 필요하다.
+(SQL Editor 로 직접 실행한 SQL 은 마이그레이션 이력에 남지 않으므로 "No migrations" 자체는 정상일 수 있다.)
 
-- [ ] [supabase.com/dashboard](https://supabase.com/dashboard) 접속
-- [ ] **"Paused" 배지가 있으면** → Restore. URL·키·데이터 전부 그대로라 `.env` 수정 불필요.
-      단 마이그레이션 **`003_fix_service_id_type.sql` 은 반드시 실행**해야 한다.
-- [ ] **목록에 없으면** (삭제됨) → 새 프로젝트 생성 후 `001` → `002` → `003` 순서로 실행.
-      Region은 **Northeast Asia (Seoul)** 권장.
+SQL Editor 에서 실행:
+
+```sql
+select table_name, column_name, data_type from information_schema.columns
+where table_schema = 'public' and column_name = 'service_id';
+```
+
+- [ ] `service_id` 가 **bigint** → `003_fix_service_id_type.sql` 실행
+- [ ] `service_id` 가 **text** → 이미 적용됨
+- [ ] 테이블이 아예 없음 → `001` → `002` → `003` 순서로 실행
 
 > ⚠️ 003 을 건너뛰면 `service_id` 가 BIGINT 인 채로 남아, 앱이 넣는 문자열 키
 > (`'netflix'`, `'claude'` …)가 전부 INSERT 실패한다.
+> Logs → Postgres 에 `invalid input syntax for type bigint` 가 보이면 이 문제다.
+
+> 참고: 로컬 실행 환경에서 `*.supabase.co` DNS 가 막혀 있을 수 있다.
+> 그건 네트워크 제한이지 프로젝트가 죽은 게 아니다 — 대시보드에서 Status 를 확인할 것.
 
 **1. Google Cloud OAuth 설정 (완료한 단계)**
 - [x] Google Cloud Console → API 및 서비스 → OAuth 동의 화면 → 3단계 연락처 정보 입력 완료

@@ -1,0 +1,19 @@
+# dependencies / build
+node_modules
+dist
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# personal data (개인 결제·계정 정보 — 커밋 금지)
+_private/
+*.ics
+
+# scratch / backups
+_to_delete/
+*.bak
+*.bak2
+*.log

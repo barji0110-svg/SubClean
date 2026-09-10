@@ -1,0 +1,5 @@
+Gaegu (개구) — 둥근 손글씨 한글 폰트
+Copyright (c) Yoon Design Inc.
+SIL Open Font License 1.1 (OFL) — 자유 재배포 및 상업적 사용 허용
+출처: https://github.com/google/fonts/tree/main/ofl/gaegu
+SubClean에 로컬 번들로 포함 (오프라인/사내망에서도 동작).

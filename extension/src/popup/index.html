@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubClean Sync</title>
+  <style>
+    body {
+      width: 320px; padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FFFDF5; color: #5B4636;
+      font-size: 13px; line-height: 1.5;
+    }
+    h1 { font-size: 18px; font-weight: 900; margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+    .status { background: #EAF8E2; border: 2.5px solid #C8EDB4; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-weight: 700; }
+    .status.error { background: #FFE7E4; border-color: #FFC4BE; }
+    .btn {
+      width: 100%; padding: 10px 16px; border-radius: 999px; border: 3px solid #FFE9D8;
+      background: linear-gradient(145deg, #FF6B60, #FF3B30 60%, #E12A20);
+      color: #fff; font-weight: 900; font-size: 13px; cursor: pointer;
+      transition: transform 0.18s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:hover { transform: scale(1.03); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .info { font-size: 11px; color: #B7A392; font-weight: 700; margin-top: 12px; text-align: center; }
+    .result { margin-top: 12px; padding: 10px 14px; border-radius: 12px; background: #FFF9F0; border: 3px solid #FFE9D8; }
+    .result strong { color: #4E9E28; }
+    .error-text { color: #E12A20; }
+  </style>
+</head>
+<body>
+  <h1>🍎 SubClean Sync</h1>
+  <div id="status" class="status">🔄 준비됨</div>
+  <button id="syncBtn" class="btn">🔄 지금 동기화</button>
+  <div id="result" style="display:none" class="result"></div>
+  <div class="info">🔒 ID/PW를 저장하지 않습니다. 현재 페이지의 정보만 읽습니다.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

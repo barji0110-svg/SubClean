@@ -1,0 +1,22 @@
+{
+  "name": "subclean",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SubClean - 메일/문자 속 만료일을 감지해 불필요한 자동결제를 차단하는 행동 중심 구독 관리 플랫폼",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  }
+}

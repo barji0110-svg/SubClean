@@ -31,20 +31,23 @@
 표시되고 API Success Rate 가 76% 라, 스키마가 실제로 어떤 상태인지 확인이 필요하다.
 (SQL Editor 로 직접 실행한 SQL 은 마이그레이션 이력에 남지 않으므로 "No migrations" 자체는 정상일 수 있다.)
 
-SQL Editor 에서 실행:
+**적용 현황 (실측 확인)**
+
+- [x] `001_schema.sql` — 적용됨 (테이블 + 카탈로그 시드 7행 확인)
+- [x] `003_fix_service_id_type.sql` — **적용 완료.**
+      `subscriptions.service_id` · `transactions.service_id` 둘 다 `text` 확인
+- [ ] `002_rls.sql` — **적용 여부 미확인.** 아래로 확인할 것
 
 ```sql
-select table_name, column_name, data_type from information_schema.columns
-where table_schema = 'public' and column_name = 'service_id';
+select relname, relrowsecurity from pg_class
+where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname;
 ```
 
-- [ ] `service_id` 가 **bigint** → `003_fix_service_id_type.sql` 실행
-- [ ] `service_id` 가 **text** → 이미 적용됨
-- [ ] 테이블이 아예 없음 → `001` → `002` → `003` 순서로 실행
+`relrowsecurity` 가 하나라도 `false` 면 → `002_rls.sql` 을 실행한다.
 
-> ⚠️ 003 을 건너뛰면 `service_id` 가 BIGINT 인 채로 남아, 앱이 넣는 문자열 키
-> (`'netflix'`, `'claude'` …)가 전부 INSERT 실패한다.
-> Logs → Postgres 에 `invalid input syntax for type bigint` 가 보이면 이 문제다.
+> ⚠️ RLS 가 꺼진 테이블은 publishable key 만 있으면 누구나 전체 데이터를 읽는다.
+> 그 키는 배포 번들에 그대로 박히므로(Vite `VITE_*` 는 빌드타임 치환) 사실상 공개 상태가 된다.
+> **RLS 가 이 앱의 유일한 데이터 보호 장치다.**
 
 > 참고: 로컬 실행 환경에서 `*.supabase.co` DNS 가 막혀 있을 수 있다.
 > 그건 네트워크 제한이지 프로젝트가 죽은 게 아니다 — 대시보드에서 Status 를 확인할 것.

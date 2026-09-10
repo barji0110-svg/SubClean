@@ -33,21 +33,28 @@
 
 **적용 현황 (실측 확인)**
 
-- [x] `001_schema.sql` — 적용됨 (테이블 + 카탈로그 시드 7행 확인)
-- [x] `003_fix_service_id_type.sql` — **적용 완료.**
-      `subscriptions.service_id` · `transactions.service_id` 둘 다 `text` 확인
-- [ ] `002_rls.sql` — **적용 여부 미확인.** 아래로 확인할 것
+**스키마 3종 전부 적용 완료 — 실측 확인함**
+
+- [x] `001_schema.sql` — 테이블 + 카탈로그 시드 7행 확인
+- [x] `002_rls.sql` — 6개 테이블 `relrowsecurity = true` 확인
+      (delivery_orders · service_catalog · service_connections ·
+       subscription_events · subscriptions · transactions)
+- [x] `003_fix_service_id_type.sql` — `subscriptions.service_id` ·
+      `transactions.service_id` 둘 다 `text` 확인
+
+DB 쪽은 더 손댈 게 없다. 다음 세션에서 재확인하려면:
 
 ```sql
 select relname, relrowsecurity from pg_class
 where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname;
-```
 
-`relrowsecurity` 가 하나라도 `false` 면 → `002_rls.sql` 을 실행한다.
+select table_name, column_name, data_type from information_schema.columns
+where table_schema = 'public' and column_name = 'service_id';
+```
 
 > ⚠️ RLS 가 꺼진 테이블은 publishable key 만 있으면 누구나 전체 데이터를 읽는다.
 > 그 키는 배포 번들에 그대로 박히므로(Vite `VITE_*` 는 빌드타임 치환) 사실상 공개 상태가 된다.
-> **RLS 가 이 앱의 유일한 데이터 보호 장치다.**
+> **RLS 가 이 앱의 유일한 데이터 보호 장치다. 절대 끄지 말 것.**
 
 > 참고: 로컬 실행 환경에서 `*.supabase.co` DNS 가 막혀 있을 수 있다.
 > 그건 네트워크 제한이지 프로젝트가 죽은 게 아니다 — 대시보드에서 Status 를 확인할 것.

@@ -59,20 +59,23 @@ where table_schema = 'public' and column_name = 'service_id';
 > 참고: 로컬 실행 환경에서 `*.supabase.co` DNS 가 막혀 있을 수 있다.
 > 그건 네트워크 제한이지 프로젝트가 죽은 게 아니다 — 대시보드에서 Status 를 확인할 것.
 
-**1. Google Cloud OAuth 설정 (완료한 단계)**
-- [x] Google Cloud Console → API 및 서비스 → OAuth 동의 화면 → 3단계 연락처 정보 입력 완료
-- [ ] OAuth 클라이언트 ID 생성 (웹 애플리케이션 유형)
-- [ ] 승인된 리디렉션 URI 등록: `https://<your-project-ref>.supabase.co/auth/v1/callback`
-- [ ] 클라이언트 ID + Secret 복사
+**1. Google OAuth — 이미 동작 중 (실측 확인)**
 
-**2. Supabase Dashboard Google Provider 설정**
-- [ ] Supabase Dashboard → Authentication → Providers → Google
-- [ ] Client ID + Client Secret 입력
-- [ ] Scopes에 `https://www.googleapis.com/auth/gmail.readonly` 추가
-- [ ] 저장
+Authentication → Users 에 Google 로 로그인한 계정이 실제로 존재한다
+(Providers 컬럼에 `Email, Google`). 즉 아래가 전부 이미 끝나 있다:
 
-**3. .env 설정**
-- [ ] `VITE_GOOGLE_CLIENT_ID=...` (Google Cloud 클라이언트 ID) 추가
+- [x] Google Cloud OAuth 동의 화면 설정
+- [x] OAuth 클라이언트 ID 생성 (웹 애플리케이션)
+- [x] 승인된 리디렉션 URI 등록 (`https://<project-ref>.supabase.co/auth/v1/callback`)
+- [x] Supabase → Authentication → Providers → Google 활성화 + Client ID/Secret 입력
+
+> Client Secret 은 **Supabase 대시보드에만** 넣는다.
+> `.env` 에 `VITE_` 로 넣으면 빌드 번들에 박혀 공개된다.
+
+**2. `VITE_GOOGLE_CLIENT_ID` 는 불필요**
+
+코드 어디서도 이 변수를 읽지 않는다. OAuth 는 Supabase 가 서버 측에서 중개하므로
+클라이언트는 Client ID 를 알 필요가 없다. `.env.example` 에만 남아 있는 잔재다.
 
 **4. 로그인 테스트**
 - [ ] `npm run dev` 실행
@@ -103,7 +106,6 @@ npm run dev
 ### 환경변수 (.env)
 - VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co (로컬 .env 에만 보관)
 - VITE_SUPABASE_ANON_KEY=설정됨 (로컬 .env 에만 보관)
-- VITE_GOOGLE_CLIENT_ID=미설정 (재개 시 추가)
 - VITE_APP_ENV=development
 
 ### 주요 파일

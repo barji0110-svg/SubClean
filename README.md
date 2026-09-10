@@ -37,9 +37,11 @@ npm run dev
 | 키 | 설명 |
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
-| `VITE_GOOGLE_CLIENT_ID` | Gmail 연동용 Google OAuth 클라이언트 ID |
+| `VITE_SUPABASE_ANON_KEY` | Supabase publishable key |
 | `VITE_APP_ENV` | `development` / `production` |
+
+Google OAuth 의 Client ID/Secret 은 **Supabase Dashboard** 에만 넣습니다.
+Supabase 가 서버 측에서 중개하므로 클라이언트 번들에 넣을 필요가 없습니다.
 
 Supabase 스키마는 `supabase/migrations/` 의 SQL을 순서대로 실행하면 됩니다.
 

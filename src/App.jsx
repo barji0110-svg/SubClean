@@ -70,7 +70,9 @@ export default function App() {
           }
         }
       } catch (e) {
-        console.warn('DB sync failed, using localStorage:', e)
+        // 조용히 넘어가면 사용자는 클라우드에 저장된 줄 안다. 반드시 알린다.
+        console.error('DB sync failed, using localStorage:', e)
+        setToast(`⚠️ 클라우드 동기화 실패 — 이 기기에만 저장됩니다 (${e.message})`)
       }
       setDbReady(true)
     }
@@ -86,7 +88,9 @@ export default function App() {
       if (result?.error) {
         notify(`📧 Gmail 연결 실패: ${result.error}`)
       } else if (result?.token) {
-        notify(`📧 Gmail 연결 완료: ${result.email}`)
+        notify(result.warning
+          ? `📧 Gmail 연결됨 (${result.email}) — ⚠️ ${result.warning}`
+          : `📧 Gmail 연결 완료: ${result.email}`)
         setView('inbox')
       } else {
         clearGmailConnectPending()

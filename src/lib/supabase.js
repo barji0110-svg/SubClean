@@ -90,8 +90,10 @@ export async function saveServiceConnection(userId, provider, tokens) {
     .select()
     .single()
   if (error) {
+    // 조용히 null 을 돌려주면 호출부가 "저장됐다"고 오해한다. 호출부가 사용자에게
+    // 알릴 수 있도록 반드시 던진다. (gmailApi.handleGmailCallback 에서 처리)
     console.error('[Supabase] saveServiceConnection error:', error)
-    return null
+    throw new Error(error.message || '연결 정보 저장 실패')
   }
   return data
 }
@@ -164,15 +166,6 @@ function mapLocalSubToDb(userId, sub) {
   }
 }
 
-async function _gmailSignIn() {
-  if (!supabase) return { error: new Error('Supabase not configured') }
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-      redirectTo: window.location.origin + '/gmail-callback',
-    },
-  })
-  return { data, error }
-}
-export { _gmailSignIn as gmailSignIn }
+// (제거됨) _gmailSignIn — 아무 데서도 import 하지 않는 죽은 코드였고,
+// redirectTo 가 '/gmail-callback' 이라 정적 호스팅에서 404 가 나는 지뢰였다.
+// Gmail 연결은 gmailApi.js 의 connectGmail() 을 쓴다.

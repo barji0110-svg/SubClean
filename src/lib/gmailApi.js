@@ -20,6 +20,13 @@ export async function connectGmail() {
     options: {
       scopes: GMAIL_SCOPE,
       redirectTo: window.location.origin,
+      // access_type=offline 이 없으면 Google 이 refresh token 을 주지 않아
+      // provider_token 이 1시간 뒤 만료되고 매번 다시 연결해야 한다.
+      // prompt=consent 는 이미 동의한 계정에도 refresh token 을 재발급시킨다.
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
     },
   })
 }
@@ -34,6 +41,7 @@ export async function handleGmailCallback() {
   const profile = await getProfile(session.provider_token)
   const email = profile?.emailAddress || session.user?.email || 'unknown'
 
+  let warning = null
   try {
     await saveServiceConnection(session.user.id, 'gmail', {
       access_token: session.provider_token,
@@ -41,10 +49,16 @@ export async function handleGmailCallback() {
       expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
     })
   } catch (e) {
-    console.warn('Failed to persist Gmail connection:', e)
+    console.error('Failed to persist Gmail connection:', e)
+    warning = `연결 정보를 저장하지 못했습니다 (${e.message}). 이번 세션에서만 유지됩니다.`
   }
 
-  return { token: session.provider_token, email }
+  if (!session.provider_refresh_token) {
+    warning = warning
+      || '갱신 토큰을 받지 못해 약 1시간 뒤 다시 연결해야 합니다.'
+  }
+
+  return { token: session.provider_token, email, warning }
 }
 
 export async function getGmailToken() {

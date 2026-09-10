@@ -24,6 +24,19 @@
 
 ### 남은 작업 (재개 시)
 
+**0. Supabase 프로젝트 상태 확인 — 먼저 할 것**
+
+기존 프로젝트 도메인이 응답하지 않는 상태다. 무료 플랜은 **7일 미사용 시 자동 일시정지**된다.
+
+- [ ] [supabase.com/dashboard](https://supabase.com/dashboard) 접속
+- [ ] **"Paused" 배지가 있으면** → Restore. URL·키·데이터 전부 그대로라 `.env` 수정 불필요.
+      단 마이그레이션 **`003_fix_service_id_type.sql` 은 반드시 실행**해야 한다.
+- [ ] **목록에 없으면** (삭제됨) → 새 프로젝트 생성 후 `001` → `002` → `003` 순서로 실행.
+      Region은 **Northeast Asia (Seoul)** 권장.
+
+> ⚠️ 003 을 건너뛰면 `service_id` 가 BIGINT 인 채로 남아, 앱이 넣는 문자열 키
+> (`'netflix'`, `'claude'` …)가 전부 INSERT 실패한다.
+
 **1. Google Cloud OAuth 설정 (완료한 단계)**
 - [x] Google Cloud Console → API 및 서비스 → OAuth 동의 화면 → 3단계 연락처 정보 입력 완료
 - [ ] OAuth 클라이언트 ID 생성 (웹 애플리케이션 유형)
@@ -43,6 +56,21 @@
 - [ ] `npm run dev` 실행
 - [ ] Gmail 로그인 버튼 테스트
 - [ ] Gmail 연결 → 이메일 분석 흐름 테스트
+
+**5. Vercel 배포**
+- [ ] Vercel → Settings → Environment Variables 에 `VITE_*` 3개 입력
+      (Vite 는 **빌드타임**에 값을 박으므로 변수 추가 후 **재배포** 필수)
+- [ ] Supabase → Authentication → URL Configuration
+      - Site URL: `https://<앱>.vercel.app`
+      - Redirect URLs: `https://<앱>.vercel.app/**` (+ 프리뷰용 `https://<프로젝트>-*.vercel.app/**`)
+- [ ] Google Cloud 승인된 리디렉션 URI 를 **새 project ref** 로 교체
+
+> Google Cloud "승인된 JavaScript 원본"에 Vercel 도메인을 넣을 필요는 **없다.**
+> 브라우저가 Google 로 갈 때 redirect_uri 는 Supabase 콜백이라, Google 이 아는 도메인은 Supabase 하나뿐이다.
+
+> `gmail.readonly` 는 restricted scope 다. Production 게시하려면 CASA 심사가 필요하므로,
+> **OAuth 동의화면을 Testing 모드로 두고 테스트 사용자(최대 100명)를 등록**하는 게 현실적이다.
+> 앱 로그인(`email`/`profile`)은 non-sensitive scope 라 심사 없이 누구나 가능하다.
 
 ### 실행 방법
 ```

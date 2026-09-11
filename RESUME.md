@@ -1,6 +1,46 @@
 # SubClean — 작업 재개 가이드
 
-## 현재 상태 (Phase 4: Apple Farm UI 리디자인 완료)
+## 🚀 배포됨 (2026-09-11)
+
+**https://sub-clean.vercel.app** — Google 로그인까지 동작 확인 완료.
+
+| 서비스 | 상태 |
+|---|---|
+| GitHub | `barji0110-svg/SubClean` (public) |
+| Vercel | `sub-clean.vercel.app` · Hobby 플랜 · 팀 `ming` |
+| Supabase | 프로젝트 `subclean` · Free · Northeast Asia (Tokyo) · Healthy |
+| Google Cloud | 프로젝트 `My First Project` · OAuth 클라이언트 활성 |
+
+**배포 번들 실측 검증 (2026-09-11)**
+- `createClient` · `GoTrue` · `signInWithOAuth` 포함 → 환경변수가 빌드에 반영됨
+- `access_type=offline` 포함 → refresh token 수정 배포됨
+- SPA rewrite 동작 (`/gmail-callback`, `/anything/deep` 모두 200 + index.html)
+- 개인정보(이메일·카드번호·영수증번호) **0건**
+
+**Supabase URL Configuration (설정 완료)**
+- Site URL: `https://sub-clean.vercel.app`
+- Redirect URLs: `https://sub-clean.vercel.app/**` · `http://localhost:5173/**`
+- ngrok 주소 제거함 (이게 남아 있어서 로그인 후 로컬 개발서버로 튕기던 문제 해결)
+
+### 남은 일
+
+- [ ] **Gmail 연동** — 아래 "3. Gmail 연동은 아직 미완성" 참고 (선택 사항, 앱은 없어도 동작)
+- [ ] 로그인 후 추가한 구독이 Supabase 에 저장되지 않는 구조 문제 (아래 "알려진 한계")
+
+### 알려진 한계
+
+**구독 CRUD 가 localStorage 에만 쓴다.** Supabase 로 쓰는 경로는 로그인 직후
+`syncLocalToSupabase` 한 번뿐이라, **로그인 후 추가·수정한 구독은 클라우드에 저장되지 않는다.**
+기기를 바꾸면 사라진다. `App.jsx` 의 `mutate()` 계열이 전부 `setState` 만 하기 때문.
+설계 변경이 필요한 작업이다.
+
+**`supabase.js` 에 죽은 코드가 많다.** `fetchSubscriptions` · `saveSubscription` ·
+`deleteSubscription` · `fetchServiceCatalog` · `saveSubscriptionEvent` 는 `db.js` 와
+중복이고 호출부가 없다. 살아 있는 건 `saveServiceConnection` 하나뿐.
+
+---
+
+## 이전 상태 (Phase 4: Apple Farm UI 리디자인 완료)
 
 ### 완료된 작업
 - [x] 기존 앱 구조 분석 및 유지

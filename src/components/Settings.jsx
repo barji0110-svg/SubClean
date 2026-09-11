@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function Settings({ settings, setSettings, resetAll, notify, subs }) {
+export default function Settings({ settings, setSettings, resetAll, notify, subs, cloudSynced = false }) {
   const [confirming, setConfirming] = useState(false)
 
   const askNotify = async () => {
@@ -91,6 +91,7 @@ export default function Settings({ settings, setSettings, resetAll, notify, subs
             <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ color: 'var(--apple)', fontSize: 12.5, fontWeight: 800 }}>
                 🥺 사과 {subs.length}알이 모두 사라져요. 되돌릴 수 없어요!
+                {cloudSynced && <><br />☁️ 클라우드에 저장된 구독도 함께 삭제되어 다른 기기에서도 사라집니다.</>}
               </span>
               <button className="btn danger sm" onClick={() => { resetAll(); setConfirming(false) }}>네, 비울게요</button>
               <button className="btn ghost sm" onClick={() => setConfirming(false)}>앗, 취소</button>

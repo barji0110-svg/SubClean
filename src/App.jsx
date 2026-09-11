@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import Sidebar from './components/Sidebar.jsx'
 import Dashboard from './components/Dashboard.jsx'
@@ -16,7 +16,7 @@ import {
 } from './lib/storage.js'
 import { summary, actionQueue } from './lib/analytics.js'
 import { todayIso, addCycle } from './lib/dates.js'
-import { syncLocalToSupabase, getSubscriptions } from './lib/db.js'
+import { mergeOnLogin, pushChanges, fingerprint, isSyncable } from './lib/subsSync.js'
 import { isGmailConnectPending, handleGmailCallback, clearGmailConnectPending } from './lib/gmailApi.js'
 
 function initialState() {
@@ -34,50 +34,99 @@ export default function App() {
   })
   const [dbReady, setDbReady] = useState(false)
 
-  /* DB ↔ localStorage sync when user logs in */
+  /**
+   * 마지막으로 원격에 반영된 구독 스냅샷 (id → 지문).
+   * 아래 write-behind 효과가 이걸 현재 상태와 비교해 변경분만 밀어 올린다.
+   */
+  const syncedRef = useRef(null)
+
+  /**
+   * 병합을 마친 계정 id.
+   * `dbReady`(state) 대신 ref 로 두는 이유: setState 는 비동기라 계정을 전환하면
+   * 다음 렌더 전까지 옛 값이 남아, 이전 계정 기준으로 write-behind 가 한 번 돌 수 있다.
+   * ref 는 동기적으로 바뀌므로 그 틈이 없다.
+   */
+  const syncedUserRef = useRef(null)
+
+  /* 로그아웃하면 동기화 상태를 비운다 (다음 로그인 때 다시 병합하도록) */
   useEffect(() => {
-    if (!configured || !user || dbReady) return
+    if (user) return
+    syncedUserRef.current = null
+    syncedRef.current = null
+    setDbReady(false)
+  }, [user])
+
+  /* 로그인 직후 1회: 원격 ↔ 로컬 병합 */
+  useEffect(() => {
+    if (!configured || !user) return
+    if (syncedUserRef.current === user.id) return
+
+    // 재진입 차단과 동시에, 병합이 끝날 때까지 write-behind 를 막는다
+    syncedUserRef.current = user.id
+    syncedRef.current = null
+    let cancelled = false
+
     const sync = async () => {
       try {
-        const dbSubs = await getSubscriptions(user.id)
-        if (dbSubs.length > 0) {
-          const mapped = dbSubs.map((s) => ({
-            id: s.id,
-            serviceId: s.service_id,
-            name: s.plan_name,
-            category: 'etc',
-            amount: s.price,
-            currency: s.currency,
-            cycle: s.billing_cycle,
-            nextBilling: s.next_billing_date,
-            trialEnd: s.trial_end_date,
-            status: s.status,
-            source: s.data_source,
-            createdAt: s.created_at,
-            steps: [],
-            snoozeUntil: null,
-            notes: '',
-            evidence: '',
-            cancelledAt: null,
-            lastUsed: null,
-            rawSnippet: '',
-          }))
-          setState((prev) => ({ ...prev, subscriptions: mapped }))
-        } else if (state.subscriptions.length > 0) {
-          const result = await syncLocalToSupabase(user.id, state.subscriptions)
-          if (result.created > 0 || result.updated > 0) {
-            setToast(`🍎 Supabase 동기 완료 (${result.created}개 생성, ${result.updated}개 갱신)`)
-          }
+        const { merged, pulled, pushed } = await mergeOnLogin(user.id, state.subscriptions)
+        if (cancelled) return
+
+        // 원격에 올리지 않는 항목(데모 시드)은 로컬에만 남겨 둔다
+        const localOnly = state.subscriptions.filter((s) => !isSyncable(s))
+        const next = [...merged, ...localOnly]
+
+        setState((prev) => ({ ...prev, subscriptions: next }))
+        syncedRef.current = new Map(merged.map((s) => [s.id, fingerprint(s)]))
+
+        if (pushed > 0) {
+          setToast(`☁️ 구독 ${pushed}건을 클라우드에 올렸어요 (불러온 것 ${pulled}건)`)
         }
       } catch (e) {
+        if (cancelled) return
         // 조용히 넘어가면 사용자는 클라우드에 저장된 줄 안다. 반드시 알린다.
         console.error('DB sync failed, using localStorage:', e)
         setToast(`⚠️ 클라우드 동기화 실패 — 이 기기에만 저장됩니다 (${e.message})`)
+        // 원격 상태를 모르는 채로 밀어 올리면 덮어쓰기 사고가 난다.
+        // syncedRef 를 null 로 둬서 write-behind 를 막고, 다음 기회에 다시 병합하게 한다.
+        syncedUserRef.current = null
       }
-      setDbReady(true)
+      if (!cancelled) setDbReady(true)
     }
+
     sync()
+    return () => { cancelled = true }
   }, [user, configured])
+
+  /**
+   * write-behind 동기화.
+   *
+   * 구독 목록이 바뀌면 원격과 비교해 변경분만 upsert / delete 한다.
+   * 개별 mutation(추가·수정·삭제·스누즈·체크리스트)마다 저장 코드를 넣지 않아도
+   * 여기 한 곳에서 전부 반영된다. 연속 편집을 묶으려고 0.8초 디바운스를 둔다.
+   */
+  useEffect(() => {
+    if (!configured || !user || !dbReady || !syncedRef.current) return
+
+    const timer = setTimeout(async () => {
+      const prev = syncedRef.current
+      const current = state.subscriptions.filter(isSyncable)
+
+      const upserts = current.filter((s) => prev.get(s.id) !== fingerprint(s))
+      const currentIds = new Set(current.map((s) => s.id))
+      const deleteIds = [...prev.keys()].filter((id) => !currentIds.has(id))
+      if (!upserts.length && !deleteIds.length) return
+
+      try {
+        await pushChanges(user.id, upserts, deleteIds)
+        syncedRef.current = new Map(current.map((s) => [s.id, fingerprint(s)]))
+      } catch (e) {
+        console.error('구독 저장 실패:', e)
+        setToast(`⚠️ 클라우드 저장 실패 — 이 기기에만 반영됐어요 (${e.message})`)
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [state.subscriptions, configured, user, dbReady])
 
   /* Gmail OAuth callback detection */
   useEffect(() => {
@@ -194,6 +243,14 @@ export default function App() {
     }))
   }, [])
 
+  /**
+   * 지난 결제일을 오늘 이후로 굴린다.
+   *
+   * 마운트 시 한 번만 돌면 **클라우드에서 불러온 구독은 처리되지 않는다**
+   * (원격 데이터가 도착하는 건 마운트 이후다). 그래서 목록이 바뀔 때마다 검사한다.
+   * 한 번 굴리면 `nextBilling >= 오늘`이 되어 다음 실행에서 `changed` 가 false 이므로
+   * 재귀 호출로 이어지지 않는다.
+   */
   useEffect(() => {
     const t = todayIso()
     let changed = false
@@ -207,8 +264,7 @@ export default function App() {
       return { ...s, lastPaid: s.nextBilling, nextBilling: cur, trialEnd: null }
     })
     if (changed) setState((p) => ({ ...p, subscriptions: next }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [state.subscriptions])
 
   const setSettings = useCallback((patch) => {
     mutate((p) => ({ ...p, settings: { ...p.settings, ...patch } }))
@@ -217,8 +273,11 @@ export default function App() {
   const resetAll = useCallback(() => {
     setState(emptyState())
     setOpenId(null)
-    notify('모든 데이터를 삭제했습니다')
-  }, [notify])
+    // 로그인 상태면 write-behind 가 원격 행까지 지운다. 그걸 숨기지 않는다.
+    notify(configured && user
+      ? '모든 데이터를 삭제했습니다 (클라우드 포함)'
+      : '모든 데이터를 삭제했습니다')
+  }, [notify, configured, user])
 
   const purgeSeeded = useCallback(() => {
     setState((p) => {
@@ -287,6 +346,7 @@ export default function App() {
             {...shared}
             setSettings={setSettings}
             resetAll={resetAll}
+            cloudSynced={Boolean(configured && user)}
           />
         )}
       </main>

@@ -19,7 +19,12 @@ export async function getServiceCatalog() {
   return mapRows(data)
 }
 
-/* ── subscriptions ── */
+/* ── subscriptions ──
+ *
+ * ⚠️ 아래 구독 CRUD 는 **쓰지 말 것.** 구독 저장의 단일 출처는 `lib/subsSync.js` 다.
+ * 여기 매핑에는 category · notes · steps · evidence · rawSnippet 등이 빠져 있어서,
+ * 이걸로 저장하면 해지 체크리스트 진행도와 메모가 조용히 사라진다.
+ */
 export async function getSubscriptions(userId) {
   if (!configured() || !supabase) return []
   const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id', userId).order('created_at', { ascending: false })
@@ -178,33 +183,11 @@ export async function upsertConnection(userId, connection) {
   }
 }
 
-/* ── local ↔ supabase sync ── */
-export async function syncLocalToSupabase(userId, localSubs) {
-  const dbSubs = await getSubscriptions(userId)
-  const dbMap = new Map(dbSubs.map((s) => [s.service_id, s]))
-
-  const results = { created: 0, updated: 0, skipped: 0 }
-  for (const local of localSubs) {
-    const existing = dbMap.get(local.serviceId)
-    if (existing) {
-      if (existing.last_synced_at && new Date(local.updatedAt || local.createdAt) <= new Date(existing.last_synced_at)) {
-        results.skipped += 1
-        continue
-      }
-      await updateSubscription(existing.id, {
-        plan_name: local.planName || local.name,
-        price: local.amount,
-        currency: local.currency,
-        status: local.status,
-        next_billing_date: local.nextBilling,
-        trial_end_date: local.trialEnd,
-        last_synced_at: new Date().toISOString(),
-      })
-      results.updated += 1
-    } else {
-      await createSubscription(userId, local)
-      results.created += 1
-    }
-  }
-  return results
-}
+/* ── local ↔ supabase sync ──
+ *
+ * (제거됨) syncLocalToSupabase — `lib/subsSync.js` 가 대체한다.
+ *
+ * 옛 구현은 serviceId 로만 대조해서 같은 서비스를 두 번 담으면 구분하지 못했고,
+ * 무엇보다 **로그인 직후 한 번만** 돌아서 그 뒤의 추가·수정·삭제가 클라우드에
+ * 반영되지 않았다. 두 구현이 공존하면 같은 버그를 다시 부르므로 지웠다.
+ */

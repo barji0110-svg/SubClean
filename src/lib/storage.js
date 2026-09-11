@@ -28,10 +28,31 @@ export const DEFAULT_SETTINGS = {
   browserNotify: false,
 }
 
-let seq = Date.now()
-export function uid(prefix = 'sub') {
-  seq += 1
-  return `${prefix}_${seq.toString(36)}`
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** 값이 DB(subscriptions.id UUID)에 그대로 넣을 수 있는 형식인가 */
+export function isUuid(v) {
+  return typeof v === 'string' && UUID_RE.test(v)
+}
+
+/**
+ * 레코드 id.
+ *
+ * **UUID 를 쓴다.** DB 의 subscriptions.id 가 UUID 라서, 같은 형식을 쓰면
+ * 로컬 id 가 곧 원격 id 가 되어 별도의 id 매핑 테이블 없이 upsert 할 수 있다.
+ * (예전엔 `sub_<base36>` 이라 DB 에 넣을 수 없었고, 그래서 한번 올린 구독을
+ *  다시 찾지 못해 수정·삭제가 클라우드에 반영되지 않았다.)
+ */
+export function uid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // 구형 브라우저 / 비보안 컨텍스트 폴백
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 export function emptyState() {
@@ -158,5 +179,5 @@ export function findDuplicate(subs, candidate) {
 }
 
 export function logActivity(activity, type, message) {
-  return [{ id: uid('log'), at: new Date().toISOString(), type, message }, ...activity].slice(0, 200)
+  return [{ id: uid(), at: new Date().toISOString(), type, message }, ...activity].slice(0, 200)
 }

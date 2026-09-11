@@ -88,6 +88,34 @@ Authentication → Users 에 Google 로 로그인한 계정이 실제로 존재�
 코드 어디서도 이 변수를 읽지 않는다. OAuth 는 Supabase 가 서버 측에서 중개하므로
 클라이언트는 Client ID 를 알 필요가 없다. `.env.example` 에만 남아 있는 잔재다.
 
+**3. Gmail 연동은 아직 미완성 (2026-09-11 실측)**
+
+Google 인증 플랫폼(`console.cloud.google.com/auth/...`) 확인 결과:
+
+| 항목 | 상태 |
+|---|---|
+| 게시 상태 (`/auth/audience`) | **테스트 중** · 사용자 유형 외부 |
+| 테스트 사용자 | **0명** (한도 100명) |
+| 등록된 범위 (`/auth/scopes`) | **0개** — 민감/제한 범위 전부 비어 있음 |
+
+앱 로그인이 되는 이유: `email`/`profile` 은 기본 범위라 등록이 필요 없고,
+**Google Cloud 프로젝트의 소유자·편집자 계정은 테스트 사용자로 등록하지 않아도 통과**하기 때문이다.
+즉 지금은 "프로젝트 권한이 있는 사람만 쓸 수 있는 앱" 상태다.
+
+**Gmail 연동을 켜려면 3가지가 모두 필요하다:**
+
+- [ ] `/auth/scopes` → `범위 추가 또는 삭제` → `https://www.googleapis.com/auth/gmail.readonly` 추가
+- [ ] Gmail API 활성화 — `console.cloud.google.com/apis/library/gmail.googleapis.com`
+      (안 켜면 API 호출이 전부 403)
+- [ ] `/auth/audience` → `+ Add users` 로 사용할 계정 등록 (최대 100명)
+
+> **앱 게시(프로덕션 전환)는 하지 말 것.** `gmail.readonly` 는 restricted scope 라
+> 게시하면 Google 보안 심사(CASA) 대상이 된다. 개인 프로젝트는
+> **테스트 모드 유지 + 테스트 사용자 등록**이 맞는 길이다.
+
+> Gmail 없이도 앱은 정상 동작한다 (로그인 · 수동 구독 등록 · D-day · 지출 분석 · 해지 가이드).
+> Gmail 이 필요한 건 받은편지함 자동 분석 화면 하나뿐이다.
+
 **4. 로그인 테스트**
 - [ ] `npm run dev` 실행
 - [ ] Gmail 로그인 버튼 테스트

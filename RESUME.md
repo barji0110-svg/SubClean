@@ -122,7 +122,20 @@ Google 인증 플랫폼(`console.cloud.google.com/auth/...`) 확인 결과:
 - [ ] Gmail 연결 → 이메일 분석 흐름 테스트
 
 **5. Vercel 배포**
-- [ ] Vercel → Settings → Environment Variables 에 `VITE_*` 3개 입력
+
+> 🚨 **환경변수를 넣기 전에 배포하면 로그인이 통째로 사라진다.**
+> `supabase.js` 의 `if (supabaseUrl && ...)` 가 빌드 시점에 `if (undefined && ...)` 로
+> 치환되면서 Rollup 이 **Supabase SDK 전체를 죽은 코드로 제거**한다.
+> 실측: `.env` 있음 912 KB / 없음 664 KB, `createClient`·`GoTrue`·`signInWithOAuth` 전부 소거.
+>
+> 게다가 **에러가 나지 않는다.** `App.jsx` 의 `configured === false` 경로가
+> 인증·온보딩 게이트를 건너뛰고 localStorage 모드로 조용히 동작한다.
+> 화면은 멀쩡한데 로그인 버튼만 없는 상태가 된다.
+>
+> **판별법: 배포된 사이트에 "Google로 시작하기" 버튼이 보이는가.**
+> 안 보이면 환경변수가 빌드에 안 들어간 것 → 변수 확인 후 **Redeploy**.
+
+- [ ] **배포를 누르기 전에** Environment Variables 에 `VITE_*` 3개 입력
       (Vite 는 **빌드타임**에 값을 박으므로 변수 추가 후 **재배포** 필수)
 - [ ] Supabase → Authentication → URL Configuration
       - Site URL: `https://<앱>.vercel.app`

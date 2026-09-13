@@ -9,6 +9,7 @@ import Settings from './components/Settings.jsx'
 import SubscriptionDrawer from './components/SubscriptionDrawer.jsx'
 import Auth from './components/Auth.jsx'
 import Onboarding from './components/Onboarding.jsx'
+import InstallPrompt from './components/InstallPrompt.jsx'
 
 import { useAuth } from './lib/auth.jsx'
 import {
@@ -337,6 +338,7 @@ export default function App() {
       )}
       <Sidebar view={view} setView={setView} sum={sum} />
       <main className="main">
+        <InstallPrompt />
         {view === 'dashboard' && <Dashboard {...shared} />}
         {view === 'inbox' && <Inbox {...shared} />}
         {view === 'subs' && <Subscriptions {...shared} />}

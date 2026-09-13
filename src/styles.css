@@ -864,6 +864,26 @@ table.tbl tr:hover td { background: var(--card-3); border-color: #FFD9C2; }
 .db-banner .sep { color: var(--text-3); }
 body.has-db-banner .app { padding-top: 32px; }
 
+/* ── PWA: 아이폰 노치·홈바 회피 ──────────────────────
+   index.html 에 viewport-fit=cover 를 줘서 화면 끝까지 그리므로,
+   safe-area 만큼 안쪽으로 밀어 주지 않으면 상단 시계와 하단 홈바에 내용이 가린다.
+   설치하지 않은 브라우저에서는 env() 가 0 이라 아무 영향이 없다. */
+.db-banner { padding-top: calc(6px + env(safe-area-inset-top)); }
+
+.sidebar {
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.main {
+  padding-right: calc(34px + env(safe-area-inset-right));
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 860px) {
+  .main { padding-left: calc(16px + env(safe-area-inset-left)); }
+}
+
 /* ── Auth ──────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh; display: grid; place-items: center;

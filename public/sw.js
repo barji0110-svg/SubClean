@@ -91,3 +91,73 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting()
 })
+
+/* ── 웹 푸시 ──────────────────────────────────────────
+   앱이 닫혀 있어도 서버가 보낸 결제 알림을 띄운다.
+   이 앱의 핵심 가치("결제 전에 알려준다")가 성립하는 지점이다. */
+
+self.addEventListener('push', (event) => {
+  // 페이로드가 깨졌다고 알림을 건너뛰면 사용자는 결제를 놓친다.
+  // 파싱에 실패해도 최소한의 알림은 띄운다.
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { title: '🍎 SubClean', body: '곧 결제 예정인 구독이 있어요.' }
+  }
+
+  const title = data.title || '🍎 SubClean'
+  const options = {
+    body: data.body || '곧 결제 예정인 구독이 있어요.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    // 같은 태그면 알림이 쌓이지 않고 교체된다 (매일 알림이 밀리지 않게)
+    tag: data.tag || 'subclean-billing',
+    renotify: true,
+    requireInteraction: false,
+    data: { url: data.url || '/' },
+    actions: [{ action: 'open', title: '확인하기' }],
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const target = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // 이미 열린 창이 있으면 새 탭을 만들지 않고 그걸 앞으로 가져온다
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate?.(target)
+          return client.focus()
+        }
+      }
+      return self.clients.openWindow(target)
+    }),
+  )
+})
+
+/**
+ * 푸시 구독이 브라우저에 의해 교체될 때(만료·키 회전).
+ * 여기서 다시 구독하지 않으면 그 기기는 조용히 알림을 못 받게 된다.
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      const applicationServerKey = event.oldSubscription?.options?.applicationServerKey
+      if (!applicationServerKey) return
+      const fresh = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      })
+      // 앱이 열려 있으면 새 구독을 서버에 저장하도록 알린다
+      const list = await self.clients.matchAll({ includeUncontrolled: true })
+      for (const client of list) {
+        client.postMessage({ type: 'PUSH_RESUBSCRIBED', subscription: fresh.toJSON() })
+      }
+    })(),
+  )
+})

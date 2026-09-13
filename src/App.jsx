@@ -19,6 +19,7 @@ import { summary, actionQueue } from './lib/analytics.js'
 import { todayIso, addCycle } from './lib/dates.js'
 import { mergeOnLogin, pushChanges, fingerprint, isSyncable } from './lib/subsSync.js'
 import { isGmailConnectPending, handleGmailCallback, clearGmailConnectPending } from './lib/gmailApi.js'
+import { listenForResubscribe } from './lib/push.js'
 
 function initialState() {
   return loadState() || emptyState()
@@ -48,6 +49,12 @@ export default function App() {
    * ref 는 동기적으로 바뀌므로 그 틈이 없다.
    */
   const syncedUserRef = useRef(null)
+
+  /**
+   * 브라우저가 푸시 구독을 교체하면(만료·키 회전) 서비스워커가 재구독한 뒤
+   * 앱에 알린다. 여기서 서버에 반영하지 않으면 그 기기는 아무 신호 없이 알림이 끊긴다.
+   */
+  useEffect(() => listenForResubscribe(() => user?.id), [user])
 
   /* 로그아웃하면 동기화 상태를 비운다 (다음 로그인 때 다시 병합하도록) */
   useEffect(() => {
@@ -349,6 +356,7 @@ export default function App() {
             setSettings={setSettings}
             resetAll={resetAll}
             cloudSynced={Boolean(configured && user)}
+            user={user}
           />
         )}
       </main>

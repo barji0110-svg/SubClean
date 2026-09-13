@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import PushToggle from './PushToggle.jsx'
 
-export default function Settings({ settings, setSettings, resetAll, notify, subs, cloudSynced = false }) {
+export default function Settings({ settings, setSettings, resetAll, notify, subs, cloudSynced = false, user = null }) {
   const [confirming, setConfirming] = useState(false)
 
   const askNotify = async () => {
@@ -64,9 +65,20 @@ export default function Settings({ settings, setSettings, resetAll, notify, subs
             />
           </div>
           <div className="divider" />
-          <button className="btn leaf" onClick={askNotify}>
-            🔔 브라우저 알림 {settings.browserNotify ? '켜짐 😊' : '켜기'}
-          </button>
+          <PushToggle user={user} notify={notify} />
+
+          <div className="divider" />
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 13.5, marginBottom: 4 }}>
+              🔔 앱 안 알림
+            </div>
+            <div style={{ color: 'var(--text-2)', fontWeight: 700, fontSize: 12.5, marginBottom: 10 }}>
+              앱이 <b>열려 있는 동안</b>에만 떠요. 위의 푸시 알림과 별개예요.
+            </div>
+            <button className="btn" onClick={askNotify}>
+              🔔 앱 안 알림 {settings.browserNotify ? '켜짐 😊' : '켜기'}
+            </button>
+          </div>
         </div>
 
         <div className="card">

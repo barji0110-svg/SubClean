@@ -42,15 +42,76 @@ curl 로 40회 폴링했더니 Vercel 봇 보호(Security Checkpoint)가 발동�
 - [x] **PWA 1단계** — 홈 화면 설치 + 오프라인.
       `manifest.webmanifest` · `sw.js` · 아이콘 4종 · `InstallPrompt.jsx`
 
+- [x] **PWA 2단계: 서버 푸시 — 완료 (2026-09-13, 실발송 확인)**
+      앱이 닫혀 있어도 매일 **KST 09:00** 에 결제 D-3 / D-1 / 당일 알림이 간다.
+
+### 푸시 알림 구성 (전 구간 실측 검증됨)
+
+| 조각 | 위치 |
+|---|---|
+| 구독 저장 | `push_subscriptions` · `push_log` (마이그레이션 006) |
+| 브라우저 측 | `lib/push.js` · `components/PushToggle.jsx` · `public/sw.js` |
+| 발송 | Edge Function `send-billing-reminders` |
+| 스케줄 | `cron.job` — `0 0 * * *` (UTC 0시 = KST 09:00) |
+| 키 | 공개키는 `VITE_VAPID_PUBLIC_KEY` (Vercel Config), 비밀키는 Edge Function 시크릿 |
+
+**Edge Function 시크릿 4개** (Project Settings → Edge Functions → Secrets)
+`VAPID_PUBLIC_KEY` · `VAPID_PRIVATE_KEY` · `VAPID_SUBJECT` · `CRON_SECRET`
+→ 값은 로컬 `vapid-keys.local` (gitignore 의 `*.local`). **이 파일을 잃으면
+   키를 새로 만들고 모든 기기가 알림을 다시 켜야 한다** (기존 구독이 전부 무효가 된다).
+
+**검증 명령** — 내일까지 기다리지 않고 cron 경로를 그대로 지금 실행해 본다:
+
+```sql
+do $$
+declare cmd text;
+begin
+  select command into cmd from cron.job where jobname = 'send-billing-reminders';
+  execute cmd;
+end $$;
+
+select status_code, content::text, created
+from net._http_response order by created desc limit 3;
+```
+
+| status_code | 의미 |
+|---|---|
+| 200 | 정상 |
+| 401 | `Authorization` 헤더 누락 |
+| 403 | `x-cron-secret` 불일치 |
+
+> `sent: 0` + `skippedAlreadySent: 1` 은 **정상**이다. 그날 이미 보냈다는 뜻.
+> 재발송을 테스트하려면 `delete from push_log where sent_on = current_date;`
+
+### ⚠️ 푸시에서 겪은 함정 3가지 (전부 조용히 실패한다)
+
+**1. `service_role` 에도 GRANT 가 필요하다 (마이그레이션 007)**
+005 에서 `authenticated` 에만 줬더니 Edge Function 이
+`permission denied for table subscriptions` 로 500 을 냈다.
+service_role 은 **RLS 는 우회하지만 GRANT 는 우회하지 않는다.**
+
+**2. cron 의 http_post 에는 헤더가 2개 필요하다**
+- `Authorization: Bearer <publishable key>` — Supabase **게이트웨이** 통과용
+  (함수의 Verify JWT 가 켜져 있어 우리 코드에 닿기도 전에 401 이 난다)
+- `x-cron-secret` — **우리 함수**의 자체 검사
+게이트웨이는 publishable key 만 있으면 누구나 통과하므로 실제 차단은 후자가 한다.
+
+**3. cron SQL 의 자리표시자를 실제 값으로 바꿔야 한다**
+`'<CRON_SECRET>'` 을 그대로 두면 매일 403 만 쌓이고 알림은 오지 않는다.
+값 대조는 이렇게 (시크릿 자체는 출력하지 않는다):
+
+```sql
+select
+  length((regexp_match(command, 'x-cron-secret''\s*,\s*''([^'']*)'''))[1]) as len,
+  left((regexp_match(command, 'x-cron-secret''\s*,\s*''([^'']*)'''))[1], 6) as starts_with
+from cron.job where jobname = 'send-billing-reminders';
+```
+
 ### 남은 일
 
-- [ ] **PWA 2단계: 서버 푸시** ← 제품 가치로는 이게 가장 크다.
-      지금 알림은 `Notification` API 직접 호출이라 **앱이 열려 있을 때만** 뜬다
-      (`Dashboard.jsx`, `gmailImport.js`). "결제 3일 전에 알려준다"는 핵심 가치가
-      성립하려면 Supabase Edge Function + `pg_cron` 일일 실행 + Web Push 가 필요하다.
-      **PWA냐 네이티브냐와 무관하게 필요한 작업이다.**
 - [ ] **Gmail 연동** — 아래 "3. Gmail 연동은 아직 미완성" 참고 (선택, 앱은 없어도 동작)
 - [ ] 네이버 메일 연동 — 아래 "알려진 한계" 참고
+- [ ] 휴대폰에서도 알림 켜기 — **구독은 기기별**이라 PC 를 켰어도 폰은 따로 켜야 한다
 
 ### 알려진 한계
 

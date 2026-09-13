@@ -17,26 +17,61 @@
 - SPA rewrite 동작 (`/gmail-callback`, `/anything/deep` 모두 200 + index.html)
 - 개인정보(이메일·카드번호·영수증번호) **0건**
 
+**⚠️ `vercel.json` 에 주석을 넣지 말 것 (2026-09-13 실측)**
+
+설명용으로 `"comment"` 키를 넣었더니 Vercel 설정 스키마 검증에서 **배포가 실패**했다.
+그런데 이전 배포가 계속 서빙되므로 **사이트는 멀쩡해 보인다.** `/sw.js` 가
+`text/html` 로 응답(= SPA 리라이트 폴백)하는 걸 보고서야 알아챘다.
+배포가 반영 안 된 것 같으면 **Vercel Deployments 에서 Error 여부부터** 확인할 것.
+
+**⚠️ 배포 확인용 폴링 주의**
+
+curl 로 40회 폴링했더니 Vercel 봇 보호(Security Checkpoint)가 발동해 403 이 났다.
+배포 확인은 대시보드에서 보거나 요청 간격을 넉넉히 둘 것.
+
 **Supabase URL Configuration (설정 완료)**
 - Site URL: `https://sub-clean.vercel.app`
 - Redirect URLs: `https://sub-clean.vercel.app/**` · `http://localhost:5173/**`
 - ngrok 주소 제거함 (이게 남아 있어서 로그인 후 로컬 개발서버로 튕기던 문제 해결)
 
+### 완료 (2026-09-13)
+
+- [x] **구독 CRUD 클라우드 저장** — `lib/subsSync.js` write-behind 동기화.
+      추가·수정·삭제·스누즈·체크리스트가 모두 Supabase 에 반영된다.
+      (마이그레이션 `004` + `005` 필요)
+- [x] **PWA 1단계** — 홈 화면 설치 + 오프라인.
+      `manifest.webmanifest` · `sw.js` · 아이콘 4종 · `InstallPrompt.jsx`
+
 ### 남은 일
 
-- [ ] **Gmail 연동** — 아래 "3. Gmail 연동은 아직 미완성" 참고 (선택 사항, 앱은 없어도 동작)
-- [ ] 로그인 후 추가한 구독이 Supabase 에 저장되지 않는 구조 문제 (아래 "알려진 한계")
+- [ ] **PWA 2단계: 서버 푸시** ← 제품 가치로는 이게 가장 크다.
+      지금 알림은 `Notification` API 직접 호출이라 **앱이 열려 있을 때만** 뜬다
+      (`Dashboard.jsx`, `gmailImport.js`). "결제 3일 전에 알려준다"는 핵심 가치가
+      성립하려면 Supabase Edge Function + `pg_cron` 일일 실행 + Web Push 가 필요하다.
+      **PWA냐 네이티브냐와 무관하게 필요한 작업이다.**
+- [ ] **Gmail 연동** — 아래 "3. Gmail 연동은 아직 미완성" 참고 (선택, 앱은 없어도 동작)
+- [ ] 네이버 메일 연동 — 아래 "알려진 한계" 참고
 
 ### 알려진 한계
-
-**구독 CRUD 가 localStorage 에만 쓴다.** Supabase 로 쓰는 경로는 로그인 직후
-`syncLocalToSupabase` 한 번뿐이라, **로그인 후 추가·수정한 구독은 클라우드에 저장되지 않는다.**
-기기를 바꾸면 사라진다. `App.jsx` 의 `mutate()` 계열이 전부 `setState` 만 하기 때문.
-설계 변경이 필요한 작업이다.
 
 **`supabase.js` 에 죽은 코드가 많다.** `fetchSubscriptions` · `saveSubscription` ·
 `deleteSubscription` · `fetchServiceCatalog` · `saveSubscriptionEvent` 는 `db.js` 와
 중복이고 호출부가 없다. 살아 있는 건 `saveServiceConnection` 하나뿐.
+구독 저장의 단일 출처는 **`lib/subsSync.js`** 다.
+
+**네이버 메일은 연동할 API 가 없다.** 네이버는 Gmail API 같은 제3자 메일 읽기 API 를
+제공하지 않는다. 선택지:
+- **자동전달** (권장 첫 시도): 네이버 메일 환경설정 → 자동전달 → Gmail 로 보내면
+  기존 Gmail 연동이 그대로 잡는다. 단 탐지가 `from:` 발신 도메인 기준
+  (`emailDetectionService.js`)이라, 전달 시 `From:` 헤더가 바뀌면 파서 보강이 필요하다.
+- **확장 프로그램**: `extension/` 에 이미 `naverAdapter.js` 가 있다.
+  `mail.naver.com` 어댑터를 추가하는 게 구조상 가장 자연스럽다 (비밀번호 불필요).
+- **IMAP**: 기술적으로 가능하나 **네이버 계정 비밀번호를 저장해야 한다.**
+  로그인 화면이 "외부 서비스 비밀번호를 저장하지 않습니다"라고 약속하고 있다. 권하지 않는다.
+
+**스토어 배포의 벽은 개발이 아니라 Gmail 심사다.** Capacitor 로 감싸는 건 쉽지만,
+스토어 공개 배포하려면 OAuth 를 프로덕션 게시해야 하고 `gmail.readonly` 는
+restricted scope 라 **CASA 보안 심사(매년 갱신)** 대상이 된다.
 
 ---
 
